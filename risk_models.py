@@ -1,19 +1,26 @@
+# Script 3: Calculate covariance with Ledoit-Wolf shrinkage.
+# Calculate implied equilibrium returns to read the market's current baseline expectations
+
+# 1. Imports
 import pandas as pd
 import numpy as np
 from sklearn.covariance import LedoitWolf
 import logging
 
+# 2. Format Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# 3. Define Risk Model Class for use in Main Script
 class RiskModel:
     """
     Calculates robust covariance matrices and extracts market-implied 
     equilibrium returns for the Black-Litterman model.
     """
     def __init__(self, risk_aversion: float = 2.5):
-        # Delta (δ): The market risk aversion coefficient. 2.5 is standard in BL literature.
-        self.risk_aversion = risk_aversion
+        # Delta: The market risk aversion coefficient. 2.5 is standard in BL literature.
+        self.risk_aversion = risk_aversion # represents how much return an average investor demands per unit of variance
 
+    # 4. Define Covariance Calculator Function Including Ledoit-Wolf Shrinkage
     def calculate_covariance(self, prices: pd.DataFrame) -> pd.DataFrame:
         """
         Calculates an annualized robust covariance matrix using Ledoit-Wolf shrinkage.
@@ -21,23 +28,24 @@ class RiskModel:
         logging.info("Calculating Ledoit-Wolf shrunken covariance matrix...")
         
         # Calculate daily log returns for numerical stability
-        returns = np.log(prices / prices.shift(1)).dropna()
+        returns = np.log(prices / prices.shift(1)).dropna() # time additive and mathematically symmetric
         
         if returns.empty:
             raise ValueError("Returns dataframe is empty. Cannot calculate covariance.")
             
         # Fit Ledoit-Wolf estimator
-        lw = LedoitWolf()
-        shrunk_cov = lw.fit(returns).covariance_
+        lw = LedoitWolf() # a standard sample covariance matrix is full of noise and spuriously high correlations. The convex optimiser to be used in script 5 will maximise these anomalies to create insane portfolio weights
+        shrunk_cov = lw.fit(returns).covariance_ # mathematically shrink the sample matrix toward a highly structured stable matrix. Prevents our optimiser from breaking
         
-        # Annualize the covariance matrix (assuming 252 trading days in a year)
-        annualized_cov = shrunk_cov * 252
+        # Annualise the covariance matrix (assuming 252 trading days in a year)
+        annualized_cov = shrunk_cov * 252 # make compatible with Q by multiplying daily covariance matrix by 252 trading days
         
         # Reconstruct DataFrame with original index and columns for ease of use
         cov_df = pd.DataFrame(annualized_cov, index=returns.columns, columns=returns.columns)
         
         return cov_df
 
+    # 5. Define an implied returns calculator function
     def calculate_implied_returns(self, cov_matrix: pd.DataFrame, market_weights: pd.Series) -> pd.Series:
         """
         Reverse-optimizes the market portfolio to find implied equilibrium returns (Π).
@@ -46,13 +54,14 @@ class RiskModel:
         logging.info("Calculating implied equilibrium returns...")
         
         # Ensure indices align perfectly to prevent matrix multiplication errors
-        market_weights = market_weights.reindex(cov_matrix.index).fillna(0.0)
+        market_weights = market_weights.reindex(cov_matrix.index).fillna(0.0) # defensive programming in case a stock was dropped due to NaN
         
         # Matrix multiplication: Π = δ * Σ * w_mkt
-        implied_returns = self.risk_aversion * cov_matrix.dot(market_weights)
+        implied_returns = self.risk_aversion * cov_matrix.dot(market_weights) # run CAPM in reverse. Assume current market cap weights of the S&P 500 are the optimal portfolio, then multiply those weights by the covariance matrix and risk aversion coeff
         
         return implied_returns
 
+# 6. Testing
 if __name__ == "__main__":
     # Test execution block
     np.random.seed(42)

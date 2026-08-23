@@ -1,10 +1,15 @@
+# Script 4:
+
+# 1. Imports
 import pandas as pd
 import numpy as np
 from numpy.linalg import inv
 import logging
 
+# 2. Format Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Define Black-Litterman Engine Class for use in Main Script
 class BlackLittermanEngine:
     """
     Houses the core Bayesian mathematics for the Black-Litterman model, 
