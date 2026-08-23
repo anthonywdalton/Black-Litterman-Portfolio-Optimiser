@@ -1,4 +1,5 @@
-# Script 4:
+# Script 4: Bayesian scale,, weighing the implied equilibrium returns against the view to find the optimal middle ground.
+# Outputs Posterior Expected Returns - a risk adjusted forecast.
 
 # 1. Imports
 import pandas as pd
@@ -9,18 +10,19 @@ import logging
 # 2. Format Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Define Black-Litterman Engine Class for use in Main Script
+# 3. Define Black-Litterman Engine Class for use in Main Script
 class BlackLittermanEngine:
     """
     Houses the core Bayesian mathematics for the Black-Litterman model, 
     blending market priors with quantitative views.
     """
     def __init__(self, tau: float = 0.05, confidence: float = 0.65):
-        # Tau: Scalar representing uncertainty in the CAPM prior (usually 0.01 - 0.05)
+        # Tau: Scalar representing uncertainty in the CAPM prior (usually 0.01 - 0.05) low as the global stock market is highly efficient
         self.tau = tau
-        # Confidence: Percentage confidence in our fundamental view (Idzorek's method)
+        # Confidence: Percentage confidence in our fundamental view - FCF yield signal (Idzorek's method)
         self.confidence = confidence
 
+    # 4. Define posterior expected returns function, applying Idzorek's method and using the master equation of Black-Litterman
     def compute_posterior_returns(self, 
                                   implied_returns: pd.Series, 
                                   cov_matrix: pd.DataFrame, 
@@ -37,11 +39,11 @@ class BlackLittermanEngine:
         P = P_matrix
         Q = Q_vector.reshape(-1, 1)
         
-        # 1. Calculate baseline Omega (Variance of the views)
+        # i) Calculate baseline Omega (Variance of the views)
         # Formula: P * (tau * Sigma) * P_transpose
-        omega_baseline = np.dot(np.dot(P, self.tau * Sigma), P.T)
+        omega_baseline = np.dot(np.dot(P, self.tau * Sigma), P.T) # isolates the natura, baseline volatility of the specific FCF strategy before applying confidence scores
         
-        # 2. Apply Idzorek's Method to scale Omega based on percentage confidence
+        # ii) Apply Idzorek's Method to scale Omega based on percentage confidence
         # If confidence is 100%, Omega approaches 0 (absolute certainty).
         # If confidence is low, Omega approaches infinity (view is ignored).
         if self.confidence >= 1.0 or self.confidence <= 0.0:
@@ -51,17 +53,17 @@ class BlackLittermanEngine:
         Omega = omega_baseline * alpha
         
         # Ensure Omega is a diagonal matrix (though we only have 1 view here, it's best practice)
-        Omega = np.diag(np.diag(Omega))
+        Omega = np.diag(np.diag(Omega)) # error terms of views are independent of each other
         
-        # 3. Master Equation Matrix Inversions
+        # iii) Master Equation Matrix Inversions
         tau_sigma_inv = inv(self.tau * Sigma)
         omega_inv = inv(Omega)
         
         # Left term: [(tau * Sigma)^-1 + P^T * Omega^-1 * P]^-1
-        left_term = inv(tau_sigma_inv + np.dot(np.dot(P.T, omega_inv), P))
+        left_term = inv(tau_sigma_inv + np.dot(np.dot(P.T, omega_inv), P)) # new combined variance of the system
         
         # Right term: [(tau * Sigma)^-1 * Pi + P^T * Omega^-1 * Q]
-        right_term = np.dot(tau_sigma_inv, Pi) + np.dot(np.dot(P.T, omega_inv), Q)
+        right_term = np.dot(tau_sigma_inv, Pi) + np.dot(np.dot(P.T, omega_inv), Q) # weighted average of returns
         
         # E[R] = Left_term * Right_term
         posterior_expected_returns = np.dot(left_term, right_term)
@@ -75,6 +77,7 @@ class BlackLittermanEngine:
         logging.info("Posterior expected returns successfully generated.")
         return posterior_series
 
+# 5. Testing
 if __name__ == "__main__":
     # Test execution block bridging the previous modules
     np.random.seed(42)
