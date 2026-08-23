@@ -92,7 +92,7 @@ The central execution script utilising Dependency Injection.
 
 ## 4. Performance
 
-**Metrics (2025-2026 Walk-Forward Out-of-Sample):**
+**Results from Testing (2025-2026 Walk-Forward Out-of-Sample):**
 *   **Black-Litterman Strategy:** 7.89% CAGR | 11.74% Volatility | 0.67 Sharpe Ratio | -10.90% Max Drawdown
 *   **Equal-Weight Benchmark:** 21.55% CAGR | 12.82% Volatility | 1.68 Sharpe Ratio | -11.31% Max Drawdown
 
