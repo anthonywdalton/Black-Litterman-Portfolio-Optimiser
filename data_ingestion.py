@@ -1,3 +1,6 @@
+# Script 1: data taken from yahoo finance as it is a free source.
+
+# 1. Imports
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -5,12 +8,13 @@ import logging
 import os
 import tempfile
 
-# 1. Suppress Windows TzCache warning by routing it to a temporary directory
-yf.set_tz_cache_location(os.path.join(tempfile.gettempdir(), "yfinance_tz_cache"))
+# 2. Suppress Windows TzCache warning by routing it to a temporary directory
+yf.set_tz_cache_location(os.path.join(tempfile.gettempdir(), "yfinance_tz_cache")) # Windows specific bug fix to avoid TzCache errors in terminal
 
-# Configure basic logging for professional terminal output
+# 3. Configure basic logging for terminal output
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# 4. Define data ingestion class to be used in main script
 class DataIngestion:
     """
     Handles fetching and formatting pricing and fundamental data for the 
@@ -21,24 +25,22 @@ class DataIngestion:
         self.tickers = tickers
         self.start_date = start_date
         self.end_date = end_date
-        self.reporting_lag = 45 # Days after quarter-end before data is 'public'
+        self.reporting_lag = 45 # Companies have 45 days to file earnings after quarter end with the SEC. Prevent look-ahead bias
 
+    # 5. Define a fetch pricing data function
     def fetch_pricing_data(self) -> pd.DataFrame:
         """
         Downloads adjusted closing prices with defensive fallback mechanisms.
         """
         logging.info(f"Downloading daily pricing data for {len(self.tickers)} assets...")
         
-        # Download data
-        data = yf.download(self.tickers, start=self.start_date, end=self.end_date, progress=False)
+        data = yf.download(self.tickers, start=self.start_date, end=self.end_date, progress=False) # send batch API request to yahoo finance for open, high, low, close and volume data for all tickers
         
         if data.empty:
             raise ValueError("Pricing data download failed. Check ticker symbols and dates.")
             
-        # Defensive Programming: Handle yfinance API structure changes dynamically
-        if isinstance(data.columns, pd.MultiIndex):
-            # If multiple tickers, columns are a MultiIndex (e.g., 'Adj Close', 'AAPL')
-            top_level_columns = data.columns.levels[0]
+        if isinstance(data.columns, pd.MultiIndex): # defensive programming: handle yfinance API structure changes dynamically
+            top_level_columns = data.columns.levels[0] # If multiple tickers, columns are a MultiIndex
             if 'Adj Close' in top_level_columns:
                 prices = data['Adj Close']
             elif 'Close' in top_level_columns:
@@ -46,8 +48,8 @@ class DataIngestion:
                 prices = data['Close']
             else:
                 raise KeyError(f"Expected 'Adj Close' or 'Close'. Found: {top_level_columns.tolist()}")
-        else:
-            # Fallback for single ticker or flat structure
+            
+        else: # fallback for single ticker or flat structure
             if 'Adj Close' in data.columns:
                 prices = data['Adj Close']
             elif 'Close' in data.columns:
@@ -55,12 +57,12 @@ class DataIngestion:
             else:
                 raise KeyError(f"Expected 'Adj Close' or 'Close'. Found: {data.columns.tolist()}")
             
-        # Forward-fill missing prices (e.g., due to trading halts), then drop early NAs
-        prices = prices.ffill().dropna(how='all')
+        prices = prices.ffill().dropna(how='all') # forward-fill missing prices due to trading halts, then drop early NAs
         
         logging.info("Pricing data successfully ingested.")
         return prices
 
+    # 6. define a fetch FCF yield function
     def fetch_fundamental_fcf_yield(self, adj_close: pd.DataFrame) -> pd.DataFrame:
         """
         Extracts quarterly Free Cash Flow, applies a 45-day reporting lag to 
@@ -112,6 +114,7 @@ class DataIngestion:
         logging.info("Point-in-time FCF Yield successfully generated.")
         return fcf_yield_df
 
+# 7. Testing
 if __name__ == "__main__":
     # Test execution block
     test_tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'BRK-B', 'JNJ', 'JPM', 'V', 'PG']
@@ -122,12 +125,12 @@ if __name__ == "__main__":
         end_date="2026-08-20"    # Changed to current timeframe
     )
     
-    # 1. Fetch Prices
+    # Fetch Prices
     prices = ingestion_engine.fetch_pricing_data()
     print("\nSample Pricing Data:")
     print(prices.tail())
     
-    # 2. Fetch Fundamentals and Calculate Lagged FCF Yield
+    # Fetch Fundamentals and Calculate Lagged FCF Yield
     fcf_yields = ingestion_engine.fetch_fundamental_fcf_yield(prices)
     print("\nSample FCF Yield Data (Point-in-Time):")
     print(fcf_yields.tail())
