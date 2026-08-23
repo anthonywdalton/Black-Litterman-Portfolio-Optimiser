@@ -18,6 +18,8 @@
 
 This is a modular, quantitative portfolio optimisation pipeline. It extracts historical pricing and fundamental data to construct a robust walk-forward backtest. The system leverages the Black-Litterman model to mathematically blend market-implied equilibrium returns with quantitative fundamental signals via Bayesian updating, subsequently passing the posterior distributions into a convex solver to determine optimal asset weights.
 
+> **Note on Data Infrastructure:** This prototype utilizes the free Yahoo Finance API (`yfinance`) for data ingestion. Due to third-party constraints on historical financial statements, fundamental metrics (such as Free Cash Flow) are restricted to the trailing 4 to 8 quarters, naturally limiting the walk-forward backtest to a recent 1-year window. In a production environment, the `data_ingestion.py` module is designed to be easily repointed to a proprietary SQL database or a premium data terminal (such as Compustat, Bloomberg, or FactSet) to execute a standard 10-year historical cross-validation.
+
 Applications of this project in quantitative trading are as follows:
 
 *   **Systematic Asset Allocation** - the pipeline demonstrates how to mathematically scale away from market-cap weights based on algorithmic signal strength rather than subjective guessing.
