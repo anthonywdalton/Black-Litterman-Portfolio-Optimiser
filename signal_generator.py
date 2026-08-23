@@ -1,4 +1,6 @@
-# Script 2: 
+# Script 2: Convert ingested data into signals.
+# Proportionally weight high FCF yield stocks with larger positive weights in the view. Vice Versa for low FCF yield stocks.
+# Construct P matrix and Q vector
 
 # 1. Imports
 import pandas as pd
